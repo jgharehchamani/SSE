@@ -1,0 +1,78 @@
+
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+service Diana {
+
+// Setup
+rpc setup (SetupMessage) returns (google.protobuf.Empty) {}
+
+// Search
+rpc searchDelete (SearchRequestMessage) returns (SearchDelReply) {}
+rpc searchInsert (SearchRequestMessage) returns (SearchInsReply) {}
+
+// Update
+rpc batchInsertKeyword (BatchInsertRequestMessage) returns (UpdateResponse) {}
+rpc insertKeyword (InsertRequestMessage) returns (UpdateResponse) {}
+rpc deleteKeyword (DeleteRequestMessage) returns (UpdateResponse) {}
+
+}
+
+message SetupMessage
+{
+    uint64 setup_size = 1;
+    bool usehdd = 2;
+}
+
+message SearchToken
+{
+    bytes token = 1;
+    uint32 depth = 2;
+}
+
+message SearchRequestMessage
+{
+    repeated SearchToken token_list = 1;
+    fixed32 add_count = 2;
+    bytes kw_token = 3;
+}
+
+message SearchDelReply
+{
+    repeated bytes result = 1;
+    double compTime = 2;
+}
+
+message SearchInsReply
+{
+    repeated uint64 result = 1;
+    double compTime = 2;
+}
+
+message InsertRequestMessage
+{
+    bytes update_token = 1;
+    uint64 index = 2;
+    bytes delete_key = 3;
+    bytes delete_value = 4;
+}
+
+message BatchInsertRequestMessage
+{
+    repeated bytes update_token = 1;
+    repeated uint64 index = 2;
+    repeated bytes delete_key = 3;
+    repeated bytes delete_value = 4;
+}
+
+message DeleteRequestMessage
+{
+    bytes update_token = 1;
+    bytes index = 2;
+}
+
+message UpdateResponse
+{
+    double compTime = 1;
+}

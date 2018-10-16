@@ -1,0 +1,50 @@
+
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+service Mitra {
+
+// Setup
+rpc setup (SetupMessage) returns (google.protobuf.Empty) {}
+
+rpc update (UpdateMessage) returns (UpdateResponse) {}
+rpc batchUpdate (BatchUpdateMessage) returns (UpdateResponse) {}
+
+rpc search (SearchMessage) returns (SearchResponse) {}
+
+}
+
+message SetupMessage
+{
+    bool cleaningMode = 1;
+    bool usehdd = 2;
+}
+
+message UpdateMessage
+{
+    bytes address = 1;
+    bytes value = 2;
+}
+
+message UpdateResponse
+{
+    double compTime = 1;
+}
+
+message SearchMessage
+{
+    repeated bytes address = 1;    
+}
+
+message SearchResponse
+{
+    repeated bytes ciphertext = 1;   
+    double compTime = 2;
+}
+
+message BatchUpdateMessage
+{
+    repeated bytes address = 1;   
+    repeated bytes value = 2;   
+}

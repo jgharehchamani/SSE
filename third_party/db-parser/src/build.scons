@@ -1,0 +1,7 @@
+Import('*')
+
+files = Glob('*.cpp') + Glob('*/*.cpp')
+
+objs = env.Object(files, CPPPATH = ['.'] + env.get('CPPPATH', []))
+
+Return('objs')

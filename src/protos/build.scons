@@ -1,0 +1,32 @@
+Import('*')
+
+fides_proto_out = env.Protoc([], 'fides.proto',
+       PROTOPATH=[Dir('.')], PROTOCPPOUT=Dir('..').abspath)
+
+fides_gprc_out = env.Grpc([], 'fides.proto',
+       PROTOPATH=[Dir('.')], GRPCPPOUT=Dir('..').abspath)
+fides_out = fides_proto_out + fides_gprc_out
+
+
+diana_proto_out = env.Protoc([], 'diana.proto',
+       PROTOPATH=[Dir('.')], PROTOCPPOUT=Dir('..').abspath)
+
+diana_gprc_out = env.Grpc([], 'diana.proto',
+       PROTOPATH=[Dir('.')], GRPCPPOUT=Dir('..').abspath)
+diana_out = diana_proto_out + diana_gprc_out
+
+
+mitra_proto_out = env.Protoc([], 'mitra.proto',
+       PROTOPATH=[Dir('.')], PROTOCPPOUT=Dir('..').abspath)
+
+mitra_gprc_out = env.Grpc([], 'mitra.proto',
+       PROTOPATH=[Dir('.')], GRPCPPOUT=Dir('..').abspath)
+mitra_out = mitra_proto_out + mitra_gprc_out
+
+
+out = {}
+out['fides'] = fides_out
+out['diana'] = diana_out
+out['mitra'] = mitra_out
+
+Return('out')

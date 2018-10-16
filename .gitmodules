@@ -1,0 +1,6 @@
+[submodule "third_party/crypto"]
+	path = third_party/crypto
+	url = https://github.com/OpenSSE/crypto-tk.git
+[submodule "third_party/db-parser"]
+	path = third_party/db-parser
+	url = https://github.com/OpenSSE/db-parser.git

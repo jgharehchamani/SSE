@@ -1,0 +1,53 @@
+
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+service Fides {
+// Setup
+rpc setup (SetupMessage) returns (google.protobuf.Empty) {}
+
+// Search
+rpc search (SearchRequestMessage) returns (SearchReply) {}
+
+// Update
+rpc update (UpdateRequestMessage) returns (UpdateResponse) {}
+rpc batchUpdate (BatchUpdateRequestMessage) returns (UpdateResponse) {}
+}
+
+message SetupMessage
+{
+    bytes public_key = 1;
+    bool cleaningMode = 2;
+    bool usehdd = 3;
+}
+
+message SearchRequestMessage
+{
+    bytes search_token = 1;
+    bytes derivation_key = 2;
+    fixed32 add_count = 3;
+}
+
+message SearchReply
+{
+    repeated bytes index = 1;
+    double compTime = 2;
+}
+
+message UpdateRequestMessage
+{
+    bytes update_token = 1;
+    bytes index = 2;
+}
+
+message BatchUpdateRequestMessage
+{
+    repeated bytes update_token = 1;
+    repeated bytes index = 2;
+}
+
+message UpdateResponse
+{
+    double compTime = 1;
+}
