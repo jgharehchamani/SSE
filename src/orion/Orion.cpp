@@ -4,8 +4,8 @@ Orion::Orion(bool usehdd, int maxSize) {
     this->useHDD = usehdd;
     bytes<Key> key1{0};
     bytes<Key> key2{1};
-    srch = new OMAP(maxSize, key1);
-    updt = new OMAP(maxSize, key2);
+    srch = new OMAP(maxSize*4, key1);
+    updt = new OMAP(maxSize*4, key2);
 }
 
 Orion::~Orion() {

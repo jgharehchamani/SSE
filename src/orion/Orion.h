@@ -11,11 +11,10 @@ private:
     map<Bid,string > setupPairs2;
     OMAP* srch,*updt;
     map<string, int> UpdtCnt;
-    map<string, int> LastIND;
-    
-    Bid createBid(string keyword,int number);
+    map<string, int> LastIND;        
     
 public:
+    Bid createBid(string keyword,int number);
     void insert(string keyword, int ind);
     void setupInsert(string keyword, int ind);
     void remove(string keyword, int ind);

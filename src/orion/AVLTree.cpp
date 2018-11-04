@@ -1,6 +1,6 @@
 #include "AVLTree.h"
 
-AVLTree::AVLTree(int maxSize, bytes<Key> key) : rd(), mt(rd()), dis(0, (pow(2, floor(log2(maxSize)) + 1) - 1) / 2) {
+AVLTree::AVLTree(int maxSize, bytes<Key> key) : rd(), mt(rd()), dis(0, (pow(2, floor(log2(maxSize / Z)) + 1) - 1) / 2) {
     oram = new ORAM(maxSize, key);
 }
 
@@ -9,6 +9,7 @@ AVLTree::~AVLTree() {
 }
 
 // A utility function to get height of the tree
+
 int AVLTree::height(Bid key, int& leaf) {
     if (key == 0)
         return 0;
@@ -17,6 +18,7 @@ int AVLTree::height(Bid key, int& leaf) {
 }
 
 // A utility function to get maximum of two integers
+
 int AVLTree::max(int a, int b) {
     return (a > b) ? a : b;
 }
@@ -26,8 +28,8 @@ int AVLTree::max(int a, int b) {
 Node* AVLTree::newNode(Bid key, string value) {
     Node* node = new Node();
     node->key = key;
-    std::fill(node->value.begin(),node->value.end(),0);
-    std::copy(value.begin(),value.end(),node->value.begin());    
+    std::fill(node->value.begin(), node->value.end(), 0);
+    std::copy(value.begin(), value.end(), node->value.begin());
     node->leftID = 0;
     node->rightID = 0;
     node->pos = RandomPath();
@@ -92,6 +94,7 @@ Node* AVLTree::leftRotate(Node* x) {
 }
 
 // Get Balance factor of node N
+
 int AVLTree::getBalance(Node* N) {
     if (N == NULL)
         return 0;
@@ -111,8 +114,8 @@ Bid AVLTree::insert(Bid rootKey, int& pos, Bid key, string value) {
     } else if (key > node->key) {
         node->rightID = insert(node->rightID, node->rightPos, key, value);
     } else {
-        std::fill(node->value.begin(),node->value.end(),0);
-        std::copy(value.begin(),value.end(),node->value.begin());
+        std::fill(node->value.begin(), node->value.end(), 0);
+        std::copy(value.begin(), value.end(), node->value.begin());
         oram->WriteNode(rootKey, node);
         return node->key;
     }
@@ -179,7 +182,38 @@ Node* AVLTree::search(Node* head, Bid key) {
     } else if (head->key < key) {
         return search(oram->ReadNode(head->rightID, head->rightPos, head->rightPos), key);
     } else
-        return head;    
+        return head;
+}
+
+/**
+ * a recursive search function which traverse binary tree to find the target node
+ */
+void AVLTree::batchSearch(Node* head, vector<Bid> keys, vector<Node*>* results) {
+    if (head == NULL || head->key == 0) {
+        return;
+    }
+    head = oram->ReadNode(head->key, head->pos, head->pos);
+    bool getLeft = false, getRight = false;
+    vector<Bid> leftkeys,rightkeys;
+    for (Bid bid : keys) {
+        if (head->key > bid) {
+            getLeft = true;
+            leftkeys.push_back(bid);
+        }
+        if (head->key < bid) {
+            getRight = true;
+            rightkeys.push_back(bid);
+        }
+        if (head->key == bid) {
+            results->push_back(head);
+        }
+    }
+    if (getLeft) {
+        batchSearch(oram->ReadNode(head->leftID, head->leftPos, head->leftPos), leftkeys, results);
+    }
+    if (getRight) {
+        batchSearch(oram->ReadNode(head->rightID, head->rightPos, head->rightPos), rightkeys, results);
+    }
 }
 
 void AVLTree::printTree(Node* root, int indent) {
@@ -190,7 +224,7 @@ void AVLTree::printTree(Node* root, int indent) {
         if (indent > 0)
             cout << setw(indent) << " ";
         string value;
-        value.assign(root->value.begin(),root->value.end());
+        value.assign(root->value.begin(), root->value.end());
         cout << root->key << ":" << value.c_str() << ":" << root->pos << ":" << root->leftID << ":" << root->leftPos << ":" << root->rightID << ":" << root->rightPos << endl;
         if (root->rightID != 0)
             printTree(oram->ReadNode(root->rightID, root->rightPos, root->rightPos), indent + 4);
@@ -201,15 +235,15 @@ void AVLTree::printTree(Node* root, int indent) {
 /*
  * before executing each operation, this function should be called with proper arguments
  */
-void AVLTree::startOperation(bool batchWrite,bool batchRead) {
-    oram->start(batchWrite,batchRead);
+void AVLTree::startOperation(bool batchWrite) {
+    oram->start(batchWrite);
 }
 
 /*
  * after executing each operation, this function should be called with proper arguments
  */
-void AVLTree::finishOperation(bool find,Bid& rootKey,int& rootPos) {
-    oram->finilize(find,rootKey,rootPos);    
+void AVLTree::finishOperation(bool find, Bid& rootKey, int& rootPos) {
+    oram->finilize(find, rootKey, rootPos);
 }
 
 int AVLTree::RandomPath() {

@@ -16,9 +16,9 @@ private:
     Bid rootKey;
     int rootPos;
     AVLTree* treeHandler;
-    
+
 public:
-    OMAP(int maxSize,bytes<Key> key);
+    OMAP(int maxSize, bytes<Key> key);
     virtual ~OMAP();
     void insert(Bid key, string value);
     string find(Bid key);

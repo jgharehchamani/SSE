@@ -6,12 +6,14 @@
 
 using namespace boost::algorithm;
 
+#define INC_FACTOR 4
+
 Horus::Horus(bool usehdd, int maxSize) {
     this->useHDD = usehdd;
     bytes<Key> key1{0};
     bytes<Key> key2{1};
-    OMAP_updt = new OMAP(maxSize * 2, key1);
-    ORAM_srch = new PRFORAM(maxSize * 2, key2);
+    OMAP_updt = new OMAP(maxSize * INC_FACTOR, key1);
+    ORAM_srch = new PRFORAM(maxSize * INC_FACTOR, key2);
     this->maxSize = maxSize;
 }
 
@@ -167,8 +169,8 @@ vector<int> Horus::search(string keyword) {
     vector<int> left, right, curValue, lastAcc;
     string* lastID = new string[UpdtCnt[keyword]];
     vector<bool> foundItem;
-    vector<pair<Bid, int> > batchWriteQuery;
-    vector<pair<Bid, string> > batchWriteQueryID;
+    map<Bid, int> batchWriteQuery;
+    map<Bid, string> batchWriteQueryID;
     for (int i = 1; i <= UpdtCnt[keyword]; i++) {
         foundItem.push_back(false);
         right.push_back(Access[keyword]);
@@ -217,13 +219,13 @@ vector<int> Horus::search(string keyword) {
                             result.push_back(stoi(lastID[i]));
                             Bid oramID = createBid(keyword, i + 1, SrchCnt[keyword] + 1, lastAcc[i]);
                             int pos = generatePosition(keyword, i + 1, SrchCnt[keyword] + 1, lastAcc[i]);
-                            batchWriteQuery.push_back(make_pair(oramID, pos));
-                            batchWriteQueryID.push_back(make_pair(oramID, lastID[i]));
+                            batchWriteQuery.insert(make_pair(oramID, pos));
+                            batchWriteQueryID.insert(make_pair(oramID, lastID[i]));
                             if (lastAcc[i] > 1) {
                                 oramID = createBid(keyword, i + 1, SrchCnt[keyword] + 1, 1);
                                 pos = generatePosition(keyword, i + 1, SrchCnt[keyword] + 1, 1);
-                                batchWriteQuery.push_back(make_pair(oramID, pos));
-                                batchWriteQueryID.push_back(make_pair(oramID, "@" + to_string(lastAcc[i])));
+                                batchWriteQuery.insert(make_pair(oramID, pos));
+                                batchWriteQueryID.insert(make_pair(oramID, "@" + to_string(lastAcc[i])));
                             }
                         } else {
 
@@ -271,7 +273,7 @@ void Horus::beginSetup() {
  */
 void Horus::endSetup() {
     OMAP_updt->batchInsert(setupPairs1);
-    ORAM_srch->SetupBatchWriteBox(setupPairs2, setupPairsPos);
+    ORAM_srch->batchWrite(setupPairs2, setupPairsPos);
 }
 
 Bid Horus::createBid(byte_t prefix, string keyword, int number) {
@@ -306,8 +308,14 @@ Bid Horus::createBid(string keyword, int number) {
  * This function generates the corresponding position of Path-ORAM using a AES PRF
  */
 int Horus::generatePosition(string keyword, int updt_cnt, int src_cnt, int acc_cnt) {
-    string key = keyword + "-" + to_string(updt_cnt) + "-" + to_string(src_cnt) + "-" + to_string(acc_cnt);
-    unsigned int* result = new unsigned int();
-    sse::crypto::Prg::derive((unsigned char*) key.c_str(), 0, 4, (unsigned char*) result);
-    return (*result) % (int) ((pow(2, floor(log2(maxSize * 2)) + 1) - 1) / 2);
+    string keyStr = keyword + "-" + to_string(updt_cnt) + "-" + to_string(src_cnt) + "-" + to_string(acc_cnt);
+    unsigned int result = 0;
+    unsigned char key[32];
+    memset(key, 0, 32);
+    for (unsigned int i = 0; i < keyStr.length() && i < 31; i++) {
+        key[i] = keyStr.at(i);
+    }
+    sse::crypto::Prg::derive(key, 0, 4, (unsigned char*) &result);
+    int pos = (result) % (int) ((pow(2, floor(log2(maxSize * INC_FACTOR / Z)) + 1) - 1) / 2);
+    return pos;
 }

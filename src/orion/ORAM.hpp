@@ -52,7 +52,6 @@ private:
     vector<int> writeviewmap;
     set<Bid> modified;
     int readCnt = 0;
-    set<int> emptyNodes;
     bytes<Key> key;
 
     // Randomness
@@ -65,7 +64,7 @@ private:
     std::vector<Bid> GetIntersectingBlocks(int x, int depth);
 
     void FetchPath(int leaf);
-    void WritePath(int leaf);
+    void WritePath(int leaf, int level);
 
     Node* ReadData(Bid bid);
     void WriteData(Bid bid, Node* b);
@@ -77,30 +76,24 @@ private:
     void WriteBucket(int pos, Bucket bucket);
     void Access(Bid bid, Node*& node, int lastLeaf, int newLeaf);
     void Access(Bid bid, Node*& node);
-    
-    
+
+
     size_t plaintext_size;
     size_t bucketCount;
     size_t clen_size;
     bool batchWrite = false;
-    bool batchRead = false;
-    
-    map<int,vector<Bid> > nodePoses;
-    vector<Bid> deleted;
 
     bool WasSerialised();
     void Print();
 
 public:
-    int aesEnc = 0, aesDec = 0;
-    
     ORAM(int maxSize, bytes<Key> key);
     ~ORAM();
 
     Node* ReadNode(Bid bid, int lastLeaf, int newLeaf);
     Node* ReadNode(Bid bid);
     int WriteNode(Bid bid, Node* n);
-    void start(bool batchWrite,bool batchRead);
+    void start(bool batchWrite);
     void finilize(bool find, Bid& rootKey, int& rootPos);
     static Node* convertBlockToNode(block b);
     static block convertNodeToBlock(Node* node);

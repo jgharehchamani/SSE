@@ -13,12 +13,12 @@
 PRFORAM::PRFORAM(int maxSize, bytes<Key> key)
 : key(key) {
     AES::Setup();
-    depth = floor(log2(maxSize));
+    depth = floor(log2(maxSize / Z));
     bucketCount = pow(2, depth + 1) - 1;
     blockSize = sizeof (Box); // B
     size_t blockCount = Z * (pow(2, depth + 1) - 1);
     size_t storeBlockSize = IV + AES::GetCiphertextLength(Z * (blockSize));
-    size_t storeBlockCount = blockCount / Z;
+    size_t storeBlockCount = blockCount;
     clen_size = AES::GetCiphertextLength((blockSize) * Z);
     plaintext_size = (blockSize) * Z;
     store = new RAMStore(storeBlockCount, storeBlockSize);
@@ -38,6 +38,7 @@ PRFORAM::~PRFORAM() {
 }
 
 // Fetches the array index a bucket that lise on a specific path
+
 int PRFORAM::GetBoxOnPath(int leaf, int curDepth) {
     leaf += bucketCount / 2;
     for (int d = depth - 1; d >= curDepth; d--) {
@@ -48,6 +49,7 @@ int PRFORAM::GetBoxOnPath(int leaf, int curDepth) {
 }
 
 // Write bucket to a single block
+
 block PRFORAM::SerialiseBucket(Bucket bucket) {
     block buffer;
 
@@ -82,7 +84,6 @@ Bucket PRFORAM::DeserialiseBucket(block buffer) {
 }
 
 Bucket PRFORAM::ReadBucket(int index) {
-    aesDec++;
     block ciphertext = store->Read(index);
     block buffer = AES::Decrypt(key, ciphertext, clen_size);
     Bucket bucket = DeserialiseBucket(buffer);
@@ -90,18 +91,14 @@ Bucket PRFORAM::ReadBucket(int index) {
 }
 
 void PRFORAM::WriteBucket(int index, Bucket bucket) {
-    aesEnc++;
     block b = SerialiseBucket(bucket);
     block ciphertext = AES::Encrypt(key, b, clen_size, plaintext_size);
     store->Write(index, ciphertext);
 }
 
 // Fetches blocks along a path, adding them to the stash
+
 void PRFORAM::FetchPath(int leaf, bool batchRead) {
-    readCnt++;
-    if (!batchRead) {
-        viewmap.clear();
-    }
     for (size_t d = 0; d <= depth; d++) {
         int node = GetBoxOnPath(leaf, d);
         if (batchRead) {
@@ -129,50 +126,32 @@ void PRFORAM::FetchPath(int leaf, bool batchRead) {
 }
 
 // Gets a list of blocks on the stash which can be placed at a specific point
-std::vector<Bid> PRFORAM::GetIntersectingBlocks(int x, int curDepth, bool batch) {
+
+std::vector<Bid> PRFORAM::GetIntersectingBlocks(int x, int curDepth) {
     std::vector<Bid> validBlocks;
     int node = GetBoxOnPath(x, curDepth);
-    if (batch) {
-        int size = nodePoses[node].size();
-        for (int i = 0; i < size && validBlocks.size() < Z; i++) {
-            if (find(deleted.begin(), deleted.end(), nodePoses[node][i]) == deleted.end()) {
-                validBlocks.push_back(nodePoses[node][i]);
-                deleted.push_back(nodePoses[node][i]);
-                nodePoses[node].erase(nodePoses[node].begin() + i);
-            }
-        }
-    } else {
-        for (auto b : stash) {
-            Bid bid = b.first;
-            if (GetBoxOnPath(b.second->pos, curDepth) == node) {
-                validBlocks.push_back(bid);
-                if (validBlocks.size() >= Z) {
-                    return validBlocks;
-                }
+    for (auto b : stash) {
+        Bid bid = b.first;
+        if (b.second != NULL && GetBoxOnPath(b.second->pos, curDepth) == node) {
+            validBlocks.push_back(bid);
+            if (validBlocks.size() >= Z) {
+                return validBlocks;
             }
         }
     }
-
     return validBlocks;
 }
 
 // Greedily writes blocks from the stash to the tree, pushing blocks as deep into the tree as possible
-void PRFORAM::WritePath(int leaf, bool batchWrite) {
-    writeCnt++;
-    if (!batchWrite) {
-        viewmap.clear();
-    }
-    // Write back the path
-    for (int d = depth; d >= 0; d--) {
 
-        // Find blocks that can be on this bucket
-        int node = GetBoxOnPath(leaf, d);
-        if (batchWrite) {
-            if (find(viewmap.begin(), viewmap.end(), node) != viewmap.end()) {
-                continue;
-            }
-        }
-        auto validBlocks = GetIntersectingBlocks(leaf, d, batchWrite);
+void PRFORAM::WritePath(int leaf, int d) {
+    // Write back the path
+
+    // Find blocks that can be on this bucket
+    int node = GetBoxOnPath(leaf, d);
+    if (find(viewmap.begin(), viewmap.end(), node) == viewmap.end()) {
+
+        auto validBlocks = GetIntersectingBlocks(leaf, d);
         // Write blocks to tree
         Bucket bucket;
         for (int z = 0; z < std::min((int) validBlocks.size(), Z); z++) {
@@ -189,15 +168,14 @@ void PRFORAM::WritePath(int leaf, bool batchWrite) {
             block.id = 0;
             block.data.resize(blockSize, 0);
         }
-        if (batchWrite) {
-            viewmap.push_back(node);
-        }
+        viewmap.push_back(node);
         // Write bucket to tree
         WriteBucket(node, bucket);
     }
 }
 
 // Updates the data of a block in the stash
+
 void PRFORAM::WriteData(Bid bid, Box* node) {
     if (store->GetEmptySize() > 0) {
         stash[bid] = node;
@@ -215,6 +193,7 @@ Box* PRFORAM::ReadData(Bid bid) {
 }
 
 // Fetches a block, allowing you to read and write  in a block
+
 string PRFORAM::Access(Bid bid, Box*& box, int pos) {
     FetchPath(pos);
     box = ReadData(bid);
@@ -223,14 +202,20 @@ string PRFORAM::Access(Bid bid, Box*& box, int pos) {
         res.assign(box->value.begin(), box->value.end());
         res = res.c_str();
     }
-    WritePath(pos);
+    viewmap.clear();
+    for (int d = depth; d >= 0; d--) {
+        WritePath(pos, d);
+    }
     return res;
 }
 
 void PRFORAM::Access(Bid bid, Box*& box) {
     FetchPath(box->pos);
     WriteData(bid, box);
-    WritePath(box->pos);
+    viewmap.clear();
+    for (int d = depth; d >= 0; d--) {
+        WritePath(box->pos, d);
+    }
 }
 
 string PRFORAM::ReadBox(Bid bid, int pos) {
@@ -239,7 +224,8 @@ string PRFORAM::ReadBox(Bid bid, int pos) {
     }
     if (stash.count(bid) == 0) {
         Box* box;
-        return Access(bid, box, pos);
+        auto value = Access(bid, box, pos);
+        return value;
     } else {
         Box* box = stash[bid];
         string res = "";
@@ -259,45 +245,6 @@ void PRFORAM::WriteBox(Bid bid, string value, int pos) {
     std::copy(value.begin(), value.end(), box->value.begin());
     box->pos = pos;
     Access(bid, box);
-}
-
-/*
- * This function is used for batch writing in the setup time
- */
-void PRFORAM::SetupBatchWriteBox(map<Bid, string> values, map<Bid, int> poses) {
-    set<int> leafs;
-    for (auto item:values) {
-        Bid bid = item.first;
-        string value = item.second;
-        int pos = poses[bid];
-        leafs.insert(pos);
-        Box* box = new Box();
-        box->key = bid;
-        std::fill(box->value.begin(), box->value.end(), 0);
-        std::copy(value.begin(), value.end(), box->value.begin());
-        box->pos = pos;
-        WriteData(bid, box);
-    }
-    int i = 0;
-    for (auto item : stash) {
-        for (int d = depth; d >= 0; d--) {
-            int curPos = GetBoxOnPath(item.second->pos, d);
-            if (nodePoses.count(curPos) == 0) {
-                vector<Bid> vec;
-                nodePoses[curPos] = vec;
-            }
-            nodePoses[curPos].push_back(item.first);
-        }
-    }
-    for (auto item : leafs) {
-        if (i != 0 && i % 1000 == 0) {
-            cout << "ORAM:" << i << "/" << leafs.size() << " inserted" << endl;
-        }
-        WritePath(item, true);
-        i++;
-    }
-    nodePoses.clear();
-    deleted.clear();
 }
 
 Box* PRFORAM::convertBlockToBox(block b) {
@@ -326,12 +273,13 @@ void PRFORAM::Print() {
     cout << endl;
 }
 
-vector<string> PRFORAM::batchRead(vector<pair<Bid,int> > batchQuery) {
+vector<string> PRFORAM::batchRead(vector<pair<Bid, int> > batchQuery) {
     vector<string> result;
     set<int> leafs;
+    viewmap.clear();
     for (auto item : batchQuery) {
         if (stash.count(item.second) == 0) {
-            FetchPath(item.second);
+            FetchPath(item.second, true);
             leafs.insert(item.second);
             Box* box;
             box = ReadData(item.first);
@@ -349,22 +297,26 @@ vector<string> PRFORAM::batchRead(vector<pair<Bid,int> > batchQuery) {
             result.push_back(res);
         }
     }
-    for (auto item : leafs) {
-        WritePath(item, true);
+    viewmap.clear();
+    for (int d = depth; d >= 0; d--) {
+        for (auto item : leafs) {
+            WritePath(item, d);
+        }
     }
     return result;
 }
 
-void PRFORAM::batchWrite(vector<pair<Bid, string> > values, vector<pair<Bid, int> > poses) {
+void PRFORAM::batchWrite(map<Bid, string> values, map<Bid, int> poses) {
     set<int> leafs;
     auto valuesIterator = values.begin();
     auto posesIterator = poses.begin();
-    for (unsigned int i=0;i<values.size();i++) {
+    viewmap.clear();
+    for (unsigned int i = 0; i < values.size(); i++) {
         Bid bid = valuesIterator->first;
         string value = valuesIterator->second;
         int pos = posesIterator->second;
         if (stash.count(pos) == 0) {
-            FetchPath(pos,true);
+            FetchPath(pos, true);
             leafs.insert(pos);
         }
         Box* box = new Box();
@@ -376,7 +328,10 @@ void PRFORAM::batchWrite(vector<pair<Bid, string> > values, vector<pair<Bid, int
         valuesIterator++;
         posesIterator++;
     }
-    for (auto item : leafs) {
-        WritePath(item, true);
+    viewmap.clear();
+    for (int d = depth; d >= 0; d--) {
+        for (auto item : leafs) {
+            WritePath(item, d);
+        }
     }
 }

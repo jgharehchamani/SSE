@@ -15,7 +15,7 @@ template <size_t N>
 using bytes = std::array<byte_t, N>;
 
 // A bucket contains a number of Blocks
-constexpr int Z = 1;
+constexpr int Z = 4;
 
 enum Op {
     READ,
