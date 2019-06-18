@@ -66,6 +66,7 @@ $ cd ..
 ```sh
 $ git clone https://github.com/relic-toolkit/relic.git
 $ cd relic/
+$ git checkout 94154a8b77e13d7fd24c9081e7fc6cd95956473d
 $ mkdir build
 $ cd build/
 $ cmake ..
